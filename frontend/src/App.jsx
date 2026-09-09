@@ -40,7 +40,7 @@ function App() {
 
 
       const response = await axios.post(
-        "http://localhost:5000/api/search",
+        "/api/search",
         {
           keyword,
           targetDomain
