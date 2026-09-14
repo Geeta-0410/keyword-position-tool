@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "Keyword Position Checker",
+  "version": "1.0.0",
+  "description": "Reads Google search results and calculates keyword position.",
+  "permissions": [
+    "tabs",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://google.com/*",
+    "https://www.google.com/*",
+    "https://google.co.in/*",
+    "https://www.google.co.in/*"
+  ],
+  "action": {
+    "default_title": "Keyword Position Checker",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://google.com/search*",
+        "https://www.google.com/search*",
+        "https://google.co.in/search*",
+        "https://www.google.co.in/search*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

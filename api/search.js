@@ -1,44 +1,8 @@
-const axios = require("axios");
-
-function normalizeDomain(value) {
-  if (!value) return "";
-
-  let domain = value.trim().toLowerCase();
-
-  if (
-    !domain.startsWith("http://") &&
-    !domain.startsWith("https://")
-  ) {
-    domain = "https://" + domain;
-  }
-
-  try {
-    return new URL(domain)
-      .hostname
-      .replace(/^www\./, "")
-      .toLowerCase();
-  } catch {
-    return value
-      .replace(/^https?:\/\//, "")
-      .replace(/^www\./, "")
-      .split("/")[0]
-      .toLowerCase();
-  }
-}
-
-function getDomain(url) {
-  try {
-    return new URL(url)
-      .hostname
-      .replace(/^www\./, "")
-      .toLowerCase();
-  } catch {
-    return "";
-  }
-}
+const {
+  createJob
+} = require("../backend/src/services/searchJobs");
 
 module.exports = async (req, res) => {
-
   if (req.method !== "POST") {
     return res.status(405).json({
       message: "Method not allowed"
@@ -46,94 +10,60 @@ module.exports = async (req, res) => {
   }
 
   try {
+    const {
+      keyword,
+      targetDomain
+    } = req.body || {};
 
-    const { keyword, targetDomain } = req.body;
-
-    if (!keyword || !targetDomain) {
+    if (
+      !keyword ||
+      typeof keyword !== "string" ||
+      !targetDomain ||
+      typeof targetDomain !== "string"
+    ) {
       return res.status(400).json({
-        message: "Keyword and targetDomain are required"
+        message:
+          "Keyword and targetDomain are required"
       });
     }
 
-    const normalizedTarget =
-      normalizeDomain(targetDomain);
+    const cleanKeyword =
+      keyword.trim();
 
-    const normalizedKeyword =
-      keyword.trim().toLowerCase();
+    const cleanTarget =
+      targetDomain.trim();
 
-    const response = await axios.get(
-      "https://serpapi.com/search.json",
-      {
-        params: {
-          engine: "google",
-          q: keyword,
-          api_key: process.env.SERP_API_KEY,
-          num: 100
-        }
-      }
+    if (
+      !cleanKeyword ||
+      !cleanTarget
+    ) {
+      return res.status(400).json({
+        message:
+          "Keyword and targetDomain cannot be empty"
+      });
+    }
+
+    const job = createJob(
+      cleanKeyword,
+      cleanTarget
     );
 
-    const organicResults =
-      response.data.organic_results || [];
-
-    const results = organicResults.map(
-      (result, index) => {
-
-        const domain = getDomain(result.link);
-
-        const titleMatch =
-          result.title
-            ?.toLowerCase()
-            .includes(normalizedKeyword);
-
-        const snippetMatch =
-          result.snippet
-            ?.toLowerCase()
-            .includes(normalizedKeyword);
-
-        return {
-          position: index + 1,
-          title: result.title,
-          url: result.link,
-          domain,
-          snippet: result.snippet || "",
-          isTarget: domain === normalizedTarget,
-          isKeywordMatch:
-            titleMatch || snippetMatch
-        };
-      }
-    );
-
-    const targetResult =
-      results.find(
-        result => result.isTarget
-      );
-
-    const matchingResults =
-      results.filter(
-        result => result.isKeywordMatch
-      );
-
-    return res.status(200).json({
-      keyword,
-      position:
-        targetResult
-          ? targetResult.position
-          : null,
-      found: !!targetResult,
-      matchingResults,
-      results
+    return res.status(202).json({
+      jobId: job.id,
+      status: job.status,
+      keyword: job.keyword,
+      targetDomain: job.targetDomain
     });
 
   } catch (error) {
-
     console.error(
-      error.response?.data ||
+      "Create search job error:",
       error.message
     );
 
     return res.status(500).json({
-      message: "Failed to fetch search results"
+      message:
+        "Failed to create search job"
     });
   }
 };
